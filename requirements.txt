@@ -1,0 +1,11 @@
+# Copernicus CDS API client
+cdsapi>=0.7.0
+
+# Scientific data & NetCDF manipulation
+xarray>=2024.0.0
+netCDF4>=1.7.0
+h5netcdf>=1.3.0
+scipy>=1.12.0
+
+# Tabular data manipulation & CSV export
+pandas>=2.2.0
