@@ -1,0 +1,96 @@
+name: ERA5-Land Daily Downloader
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "Years to download (space-separated, e.g. 2022 2023)"
+        required: false
+        default: "2023"
+        type: string
+      months:
+        description: "Months to download (space-separated 1-12, e.g. 1 2 3 11 12)"
+        required: false
+        default: "1"
+        type: string
+      start_date:
+        description: "Optional exact start date (YYYY-MM-DD, e.g. 2023-01-01)"
+        required: false
+        default: ""
+        type: string
+      end_date:
+        description: "Optional exact end date (YYYY-MM-DD, e.g. 2023-01-10)"
+        required: false
+        default: ""
+        type: string
+      csv_file:
+        description: "Output CSV filename"
+        required: false
+        default: "era5_land_gulmarg_daily.csv"
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  download-era5:
+    name: Download & Merge ERA5-Land
+    runs-on: ubuntu-latest
+    timeout-minutes: 360 # GitHub maximum job runtime (6 hours)
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Dual-Account Downloader
+        env:
+          KEY1: ${{ secrets.CDS_KEY1 || '234f8372-f3eb-4c0f-8f5e-c53cb612c563' }}
+          KEY2: ${{ secrets.CDS_KEY2 || 'eaa6d554-ca76-4b4a-8094-f85cdb55ea34' }}
+        run: |
+          CMD="python download_daily_dual_account_to_csv.py --csv-file '${{ inputs.csv_file }}' --key1 '$KEY1' --key2 '$KEY2'"
+          
+          if [ -n "${{ inputs.start_date }}" ] && [ -n "${{ inputs.end_date }}" ]; then
+            CMD="$CMD --start-date '${{ inputs.start_date }}' --end-date '${{ inputs.end_date }}'"
+          else
+            CMD="$CMD --years ${{ inputs.years }} --months ${{ inputs.months }}"
+          fi
+          
+          echo "Executing: $CMD"
+          eval $CMD
+
+      - name: Upload CSV as Workflow Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.csv_file }}
+          path: ${{ inputs.csv_file }}
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Commit and Push Updated CSV to Repository
+        if: always()
+        run: |
+          if [ -f "${{ inputs.csv_file }}" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add "${{ inputs.csv_file }}"
+            if git diff --staged --quiet; then
+              echo "No changes to commit (all requested dates were already up to date)."
+            else
+              git commit -m "Auto-update ${{ inputs.csv_file }} via GitHub Actions [skip ci]"
+              git push
+            fi
+          else
+            echo "CSV file '${{ inputs.csv_file }}' does not exist, skipping commit."
+          fi
