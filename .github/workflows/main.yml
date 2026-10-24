@@ -58,7 +58,7 @@ jobs:
           KEY1: ${{ secrets.CDS_KEY1 || '234f8372-f3eb-4c0f-8f5e-c53cb612c563' }}
           KEY2: ${{ secrets.CDS_KEY2 || 'eaa6d554-ca76-4b4a-8094-f85cdb55ea34' }}
         run: |
-          CMD="python download_daily_dual_account_to_csv.py --csv-file '${{ inputs.csv_file }}' --key1 '$KEY1' --key2 '$KEY2'"
+          CMD="python weather_data.py --csv-file '${{ inputs.csv_file }}' --key1 '$KEY1' --key2 '$KEY2'"
           
           if [ -n "${{ inputs.start_date }}" ] && [ -n "${{ inputs.end_date }}" ]; then
             CMD="$CMD --start-date '${{ inputs.start_date }}' --end-date '${{ inputs.end_date }}'"
